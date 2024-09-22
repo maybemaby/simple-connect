@@ -10,6 +10,7 @@ require (
 
 require (
 	connectrpc.com/connect v1.17.0 // indirect
+	golang.org/x/text v0.18.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 )
 
@@ -20,4 +21,5 @@ require (
 	github.com/samber/lo v1.38.1 // indirect
 	github.com/unrolled/secure v1.15.0
 	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
+	golang.org/x/net v0.29.0
 )
