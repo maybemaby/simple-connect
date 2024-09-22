@@ -1,0 +1,9 @@
+@host = localhost:8000
+
+POST http://{{host}}/proto.api.v1.HealthService/Check
+Content-Type: application/json
+
+{
+    
+}
+###

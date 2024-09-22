@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package proto.api.v1;
+
+option go_package = "simple-connect/gen/proto/api/v1;apiv1";
+
+message Empty {}
+
+message CheckResponse {
+    string message = 1;
+}
+
+service HealthService {
+    rpc Check(Empty) returns (CheckResponse);
+}

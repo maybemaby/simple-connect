@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package proto.api.v1;
+
+option go_package = "simple-connect/gen/proto/api/v1;apiv1";
+
+message BaseUser {
+    string id = 1;
+}
+
+message LoginRequest {
+    string email = 1;
+    string password = 2;
+}
+
+message LoginResponse {
+    string id = 1;
+}
