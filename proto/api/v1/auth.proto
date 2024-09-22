@@ -16,3 +16,15 @@ message LoginRequest {
 message LoginResponse {
     string id = 1;
 }
+
+message MeRequest {
+
+}
+
+service AuthService {
+    rpc Login(LoginRequest) returns (LoginResponse) {};
+}
+
+service ProtectedAuthService {
+    rpc Me(MeRequest) returns (BaseUser) {};
+}

@@ -1,10 +1,12 @@
 package auth
 
 import (
+	"context"
 	"encoding/gob"
 	"net/http"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
 	"github.com/justinas/alice"
@@ -30,6 +32,34 @@ func NewSessionManager(secure bool) *scs.SessionManager {
 	manager.Cookie.Path = "/"
 
 	return manager
+}
+
+func AuthInterceptor(s *scs.SessionManager) connect.UnaryInterceptorFunc {
+	interceptor := func(next connect.UnaryFunc) connect.UnaryFunc {
+
+		return connect.UnaryFunc(func(ctx context.Context, ar connect.AnyRequest) (connect.AnyResponse, error) {
+			res, err := next(ctx, ar)
+
+			res.Header().Add("Vary", "Cookie")
+
+			// var token string
+
+			cookieStr := ar.Header().Get("Cookie")
+
+			if cookieStr == "" {
+
+			}
+
+			return res, err
+		})
+	}
+
+	return connect.UnaryInterceptorFunc(interceptor)
+}
+
+func LoginRpc(r connect.AnyResponse, sessionManager *scs.SessionManager, sessionId string) error {
+
+	return nil
 }
 
 func Login(r *http.Request, sessionManager *scs.SessionManager, sessionId string) error {

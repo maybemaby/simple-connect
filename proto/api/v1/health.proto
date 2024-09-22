@@ -4,11 +4,12 @@ package proto.api.v1;
 
 option go_package = "simple-connect/gen/proto/api/v1;apiv1";
 
-message Empty {}
 
 message CheckResponse {
     string message = 1;
 }
+
+message Empty {}
 
 service HealthService {
     rpc Check(Empty) returns (CheckResponse);

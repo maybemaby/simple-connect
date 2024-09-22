@@ -1,5 +1,6 @@
 @host = localhost:8000
 
+@name = "health"
 POST http://{{host}}/proto.api.v1.HealthService/Check
 Content-Type: application/json
 
@@ -7,3 +8,21 @@ Content-Type: application/json
     
 }
 ###
+
+@name = "login"
+POST http://{{host}}/proto.api.v1.AuthService/Login
+Content-Type: application/json
+
+{
+    "email": "",
+    "password": ""
+}
+
+###
+@name = "me"
+POST http://{{host}}/proto.api.v1.ProtectedAuthService/Me
+Content-Type: application/json
+
+{
+    
+}
