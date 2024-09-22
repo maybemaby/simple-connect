@@ -1,6 +1,7 @@
 package httputils
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -45,4 +46,23 @@ func DeleteCookie(r connect.AnyResponse, name string) {
 	}
 
 	r.Header().Add("Set-Cookie", deletedCookie.String())
+}
+
+func ReadJSON[T any](r *http.Request, target T) error {
+	dec := json.NewDecoder(r.Body)
+	return dec.Decode(target)
+}
+
+func WriteJSON[T any](w http.ResponseWriter, r *http.Request, data T) error {
+	enc := json.NewEncoder(w)
+
+	err := enc.Encode(data)
+
+	if err != nil {
+		return err
+	}
+
+	r.Header.Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	return nil
 }

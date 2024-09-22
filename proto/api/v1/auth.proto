@@ -22,7 +22,6 @@ message MeRequest {
 }
 
 service AuthService {
-    rpc Login(LoginRequest) returns (LoginResponse) {};
 }
 
 service ProtectedAuthService {

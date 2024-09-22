@@ -10,13 +10,19 @@ Content-Type: application/json
 ###
 
 @name = "login"
-POST http://{{host}}/proto.api.v1.AuthService/Login
+POST http://{{host}}/auth/login/
 Content-Type: application/json
 
 {
     "email": "",
     "password": ""
 }
+
+###
+@name = "logout"
+POST http://{{host}}/auth/logout/
+Content-Type: application/json
+
 
 ###
 @name = "me"

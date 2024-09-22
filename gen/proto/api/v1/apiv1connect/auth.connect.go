@@ -35,8 +35,6 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// AuthServiceLoginProcedure is the fully-qualified name of the AuthService's Login RPC.
-	AuthServiceLoginProcedure = "/proto.api.v1.AuthService/Login"
 	// ProtectedAuthServiceMeProcedure is the fully-qualified name of the ProtectedAuthService's Me RPC.
 	ProtectedAuthServiceMeProcedure = "/proto.api.v1.ProtectedAuthService/Me"
 )
@@ -44,14 +42,12 @@ const (
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
 var (
 	authServiceServiceDescriptor           = v1.File_proto_api_v1_auth_proto.Services().ByName("AuthService")
-	authServiceLoginMethodDescriptor       = authServiceServiceDescriptor.Methods().ByName("Login")
 	protectedAuthServiceServiceDescriptor  = v1.File_proto_api_v1_auth_proto.Services().ByName("ProtectedAuthService")
 	protectedAuthServiceMeMethodDescriptor = protectedAuthServiceServiceDescriptor.Methods().ByName("Me")
 )
 
 // AuthServiceClient is a client for the proto.api.v1.AuthService service.
 type AuthServiceClient interface {
-	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
 }
 
 // NewAuthServiceClient constructs a client for the proto.api.v1.AuthService service. By default, it
@@ -62,30 +58,15 @@ type AuthServiceClient interface {
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
 func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AuthServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	return &authServiceClient{
-		login: connect.NewClient[v1.LoginRequest, v1.LoginResponse](
-			httpClient,
-			baseURL+AuthServiceLoginProcedure,
-			connect.WithSchema(authServiceLoginMethodDescriptor),
-			connect.WithClientOptions(opts...),
-		),
-	}
+	return &authServiceClient{}
 }
 
 // authServiceClient implements AuthServiceClient.
 type authServiceClient struct {
-	login *connect.Client[v1.LoginRequest, v1.LoginResponse]
-}
-
-// Login calls proto.api.v1.AuthService.Login.
-func (c *authServiceClient) Login(ctx context.Context, req *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error) {
-	return c.login.CallUnary(ctx, req)
 }
 
 // AuthServiceHandler is an implementation of the proto.api.v1.AuthService service.
 type AuthServiceHandler interface {
-	Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error)
 }
 
 // NewAuthServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -94,16 +75,8 @@ type AuthServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	authServiceLoginHandler := connect.NewUnaryHandler(
-		AuthServiceLoginProcedure,
-		svc.Login,
-		connect.WithSchema(authServiceLoginMethodDescriptor),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/proto.api.v1.AuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case AuthServiceLoginProcedure:
-			authServiceLoginHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -112,10 +85,6 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 
 // UnimplementedAuthServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAuthServiceHandler struct{}
-
-func (UnimplementedAuthServiceHandler) Login(context.Context, *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("proto.api.v1.AuthService.Login is not implemented"))
-}
 
 // ProtectedAuthServiceClient is a client for the proto.api.v1.ProtectedAuthService service.
 type ProtectedAuthServiceClient interface {

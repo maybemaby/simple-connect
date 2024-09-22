@@ -50,7 +50,7 @@ func NewServer(cfg ServerConfig, isProd bool) (*Server, error) {
 		sessionManager = auth.NewSessionManager(true)
 	} else {
 		logFormat = internal.TEXTFormat
-		sessionManager = auth.NewSessionManager(true)
+		sessionManager = auth.NewSessionManager(false)
 	}
 
 	logger := internal.BootstrapLogger(cfg.LogLevel, logFormat, !isProd)
@@ -80,13 +80,18 @@ func (s *Server) MountHandlers() {
 	s.logger.Debug("Mounting health handler at", slog.String("path", healthPath))
 	s.mux.Handle(healthPath, rootMw.Then(healthHandler))
 
-	authPath, authHandler := apiv1connect.NewAuthServiceHandler(&auth.AuthHandler{})
+	authStore := auth.NewAuthService(s.pool)
+	authHandler := auth.NewAuthHandler(authStore, s.sessionManager)
+	authPath, authRpc := apiv1connect.NewAuthServiceHandler(authHandler)
 	s.logger.Debug("Mounting auth handler at", slog.String("path", authPath))
-	s.mux.Handle(authPath, rootMw.Then(authHandler))
+	s.mux.Handle(authPath, rootMw.Then(authRpc))
+	s.mux.Handle("POST /auth/login/{$}", rootMw.ThenFunc(authHandler.Login))
 
-	protectedAuthPath, protectedAuthHandler := apiv1connect.NewProtectedAuthServiceHandler(&auth.ProtectedAuthHandler{})
+	protectedAuthHandler := auth.NewProtectedAuthHandler(authStore, s.sessionManager)
+	protectedAuthPath, protectedAuthRpc := apiv1connect.NewProtectedAuthServiceHandler(protectedAuthHandler)
 	s.logger.Debug("Mounting protected auth handler at", slog.String("path", protectedAuthPath))
-	s.mux.Handle(protectedAuthPath, authMw.Then(protectedAuthHandler))
+	s.mux.Handle(protectedAuthPath, authMw.Then(protectedAuthRpc))
+	s.mux.Handle("POST /auth/logout/{$}", authMw.ThenFunc(protectedAuthHandler.Logout))
 }
 
 func (s *Server) Start() error {
