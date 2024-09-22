@@ -2,12 +2,15 @@ package auth
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"simple-connect/api/httputils"
+	"simple-connect/api/internal"
 	v1 "simple-connect/gen/proto/api/v1"
 
 	"connectrpc.com/connect"
 	"github.com/alexedwards/scs/v2"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthHandler struct {
@@ -19,19 +22,85 @@ type LoginResponse struct {
 	Id string `json:"id"`
 }
 
+type SignupRequest struct {
+	Email     string `json:"email"`
+	Password1 string `json:"password1"`
+	Password2 string `json:"password2"`
+}
+
 func NewAuthHandler(store AuthStore, sessionManager *scs.SessionManager) *AuthHandler {
 	return &AuthHandler{store: store, sessionManager: sessionManager}
 }
 
 func (as *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	err := Login(r, as.sessionManager, "1")
+	logger := internal.RequestLogger(r)
+	loginReq := &v1.LoginRequest{}
+
+	err := httputils.ReadJSON(r, loginReq)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	user, err := as.store.GetUserByEmail(r.Context(), loginReq.Email)
+
+	if err != nil {
+		logger.Error("error getting user by email", slog.String("Error", err.Error()))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash.String), []byte(loginReq.Password))
+
+	if err != nil {
+		logger.Debug("passwords do not match", slog.String("pw", user.PasswordHash.String))
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	err = Login(r, as.sessionManager, SessionData{UserID: user.ID})
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	httputils.WriteJSON(w, r, LoginResponse{Id: "1"})
+	httputils.WriteJSON(w, r, LoginResponse{Id: user.ID})
+}
+
+func (as *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
+	logger := internal.RequestLogger(r)
+	signupReq := &SignupRequest{}
+
+	err := httputils.ReadJSON(r, signupReq)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if signupReq.Password1 != signupReq.Password2 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	id, err := as.store.CreateUser(r.Context(), signupReq.Email, signupReq.Password1)
+
+	if err != nil {
+		logger.Error("error creating user", slog.String("Error", err.Error()))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	err = Login(r, as.sessionManager, SessionData{UserID: id})
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	httputils.WriteJSON(w, r, LoginResponse{Id: id})
 }
 
 type ProtectedAuthHandler struct {

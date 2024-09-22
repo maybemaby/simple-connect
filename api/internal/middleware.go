@@ -1,4 +1,4 @@
-package api
+package internal
 
 import (
 	"context"
@@ -69,6 +69,10 @@ func LoggingMiddleware(logger slog.Logger) alice.Constructor {
 			_logger.Info("Request completed", slog.Duration("duration", time.Since(start)), slog.Int("status", rec.status))
 		})
 	}
+}
+
+func RequestLogger(request *http.Request) *slog.Logger {
+	return request.Context().Value(RequestLoggerKey).(*slog.Logger)
 }
 
 type MiddlewareConfig struct {

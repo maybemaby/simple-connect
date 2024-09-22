@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/alexedwards/scs/pgxstore"
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/justinas/alice"
 )
 
@@ -14,10 +16,15 @@ func init() {
 	gob.Register(time.Time{})
 }
 
+type SessionData struct {
+	UserID string `json:"userId"`
+}
+
+const SessionUserKey = "user_id"
 const AuthLifetime = 30 * 24 * time.Hour
 const SessionName = "__s_auth_sess"
 
-func NewSessionManager(secure bool) *scs.SessionManager {
+func NewMemorySessionManager(secure bool) *scs.SessionManager {
 	manager := scs.New()
 	manager.Store = memstore.New()
 
@@ -32,12 +39,27 @@ func NewSessionManager(secure bool) *scs.SessionManager {
 	return manager
 }
 
-func Login(r *http.Request, sessionManager *scs.SessionManager, sessionId string) error {
+func NewSessionManager(secure bool, pool *pgxpool.Pool) *scs.SessionManager {
+	manager := scs.New()
+	manager.Store = pgxstore.New(pool)
+
+	manager.Lifetime = AuthLifetime
+	manager.Cookie.Name = SessionName
+	manager.Cookie.HttpOnly = true
+	manager.Cookie.SameSite = http.SameSiteLaxMode
+	manager.Cookie.Secure = secure
+	manager.Cookie.Persist = true
+	manager.Cookie.Path = "/"
+
+	return manager
+}
+
+func Login(r *http.Request, sessionManager *scs.SessionManager, data SessionData) error {
 	err := sessionManager.RenewToken(r.Context())
 	if err != nil {
 		return err
 	}
-	sessionManager.Put(r.Context(), "id", sessionId)
+	sessionManager.Put(r.Context(), SessionUserKey, data.UserID)
 	return nil
 }
 
@@ -49,9 +71,9 @@ func RequireAuthMiddleWare(sessionManager *scs.SessionManager) alice.Constructor
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-			id := sessionManager.GetString(r.Context(), "id")
+			userId := sessionManager.GetString(r.Context(), SessionUserKey)
 
-			if id == "" {
+			if userId == "" {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}

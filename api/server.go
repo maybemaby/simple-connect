@@ -47,10 +47,10 @@ func NewServer(cfg ServerConfig, isProd bool) (*Server, error) {
 
 	if isProd {
 		logFormat = internal.JSONFormat
-		sessionManager = auth.NewSessionManager(true)
+		sessionManager = auth.NewSessionManager(true, pool)
 	} else {
 		logFormat = internal.TEXTFormat
-		sessionManager = auth.NewSessionManager(false)
+		sessionManager = auth.NewSessionManager(false, pool)
 	}
 
 	logger := internal.BootstrapLogger(cfg.LogLevel, logFormat, !isProd)
@@ -69,7 +69,7 @@ func NewServer(cfg ServerConfig, isProd bool) (*Server, error) {
 
 func (s *Server) MountHandlers() {
 
-	rootMw := RootMiddleware(*s.logger, MiddlewareConfig{
+	rootMw := internal.RootMiddleware(*s.logger, internal.MiddlewareConfig{
 		CorsOrigin:     s.allowedHosts[0],
 		SessionManager: s.sessionManager,
 	})
@@ -86,6 +86,7 @@ func (s *Server) MountHandlers() {
 	s.logger.Debug("Mounting auth handler at", slog.String("path", authPath))
 	s.mux.Handle(authPath, rootMw.Then(authRpc))
 	s.mux.Handle("POST /auth/login/{$}", rootMw.ThenFunc(authHandler.Login))
+	s.mux.Handle("POST /auth/signup/{$}", rootMw.ThenFunc(authHandler.Signup))
 
 	protectedAuthHandler := auth.NewProtectedAuthHandler(authStore, s.sessionManager)
 	protectedAuthPath, protectedAuthRpc := apiv1connect.NewProtectedAuthServiceHandler(protectedAuthHandler)
@@ -104,5 +105,8 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Cleanup(ctx context.Context) error {
+	s.logger.Info("Shutting down server")
+
+	s.pool.Close()
 	return nil
 }

@@ -14,8 +14,19 @@ POST http://{{host}}/auth/login/
 Content-Type: application/json
 
 {
-    "email": "",
-    "password": ""
+    "email": "test@email.com",
+    "password": "Frozen11"
+}
+
+###
+@name = "signup
+POST http://{{host}}/auth/signup/
+Content-Type: application/json
+
+{
+    "email": "test@email.com",
+    "password1": "Frozen11",
+    "password2": "Frozen11"
 }
 
 ###
