@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"simple-connect/api"
+	"strings"
 	"syscall"
 	"time"
 
@@ -48,6 +49,9 @@ func main() {
 
 	// Server
 	appEnv := os.Getenv("APP_ENV")
+	allowedHosts := os.Getenv("ALLOWED_HOSTS")
+
+	hosts := strings.Split(allowedHosts, ",")
 
 	isDebug := appEnv == "development"
 
@@ -60,8 +64,9 @@ func main() {
 	}
 
 	cfg := api.ServerConfig{
-		Port:     args.Port,
-		LogLevel: logLevel,
+		Port:         args.Port,
+		LogLevel:     logLevel,
+		AllowedHosts: hosts,
 	}
 
 	server, err := api.NewServer(cfg, !isDebug)

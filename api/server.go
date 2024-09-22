@@ -19,11 +19,13 @@ type Server struct {
 	logger         *slog.Logger
 	sessionManager *scs.SessionManager
 	Addr           string
+	allowedHosts   []string
 }
 
 type ServerConfig struct {
-	Port     string
-	LogLevel slog.Level
+	Port         string
+	LogLevel     slog.Level
+	AllowedHosts []string
 }
 
 func NewServer(cfg ServerConfig, isProd bool) (*Server, error) {
@@ -47,13 +49,14 @@ func NewServer(cfg ServerConfig, isProd bool) (*Server, error) {
 		logger:         logger,
 		sessionManager: sessionManager,
 		Addr:           fmt.Sprintf(":%s", cfg.Port),
+		allowedHosts:   cfg.AllowedHosts,
 	}, nil
 }
 
 func (s *Server) MountHandlers() {
 
 	rootMw := RootMiddleware(*s.logger, MiddlewareConfig{
-		CorsOrigin:     "*",
+		CorsOrigin:     s.allowedHosts[0],
 		SessionManager: s.sessionManager,
 	})
 
