@@ -34,6 +34,12 @@ func CorsMiddleware(origin string) alice.Constructor {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
 			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-User-Agent")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
 			next.ServeHTTP(w, r)
 		})
 	}
@@ -88,4 +94,8 @@ func RootMiddleware(logger slog.Logger, cfg MiddlewareConfig) alice.Chain {
 	})
 
 	return alice.New(cfg.SessionManager.LoadAndSave, RequestIdMiddleware(), LoggingMiddleware(logger), CorsMiddleware(cfg.CorsOrigin), secureMw.Handler)
+}
+
+func RpcLogger(ctx context.Context) *slog.Logger {
+	return ctx.Value(RequestLoggerKey).(*slog.Logger)
 }
