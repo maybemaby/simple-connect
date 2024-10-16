@@ -47,10 +47,10 @@ func NewServer(cfg ServerConfig, isProd bool) (*Server, error) {
 
 	if isProd {
 		logFormat = internal.JSONFormat
-		sessionManager = auth.NewSessionManager(true, pool)
+		sessionManager = auth.NewSessionManager(true, "", pool)
 	} else {
 		logFormat = internal.TEXTFormat
-		sessionManager = auth.NewSessionManager(false, pool)
+		sessionManager = auth.NewSessionManager(false, "", pool)
 	}
 
 	logger := internal.BootstrapLogger(cfg.LogLevel, logFormat, !isProd)

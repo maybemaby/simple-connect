@@ -24,7 +24,7 @@ const SessionUserKey = "user_id"
 const AuthLifetime = 30 * 24 * time.Hour
 const SessionName = "__s_auth_sess"
 
-func NewMemorySessionManager(secure bool) *scs.SessionManager {
+func NewMemorySessionManager(secure bool, domain string) *scs.SessionManager {
 	manager := scs.New()
 	manager.Store = memstore.New()
 
@@ -36,10 +36,14 @@ func NewMemorySessionManager(secure bool) *scs.SessionManager {
 	manager.Cookie.Persist = true
 	manager.Cookie.Path = "/"
 
+	if domain != "" {
+		manager.Cookie.Domain = domain
+	}
+
 	return manager
 }
 
-func NewSessionManager(secure bool, pool *pgxpool.Pool) *scs.SessionManager {
+func NewSessionManager(secure bool, domain string, pool *pgxpool.Pool) *scs.SessionManager {
 	manager := scs.New()
 	manager.Store = pgxstore.New(pool)
 
@@ -50,6 +54,10 @@ func NewSessionManager(secure bool, pool *pgxpool.Pool) *scs.SessionManager {
 	manager.Cookie.Secure = secure
 	manager.Cookie.Persist = true
 	manager.Cookie.Path = "/"
+
+	if domain != "" {
+		manager.Cookie.Domain = domain
+	}
 
 	return manager
 }
