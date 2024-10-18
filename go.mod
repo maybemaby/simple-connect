@@ -12,6 +12,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	connectrpc.com/connect v1.17.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/go-jet/jet/v2 v2.11.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect

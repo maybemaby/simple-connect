@@ -21,6 +21,9 @@ migration-up:
 migration-down:
 	goose -dir ./migrations postgres $(DB_URL) down
 
+jet-generate:
+	jet -dsn=postgres://postgres:postgres@localhost:5432/gopg?sslmode=disable -path=./api/data/gen
+
 build:
 	go build -o bin/api cmd/api/main.go
 	

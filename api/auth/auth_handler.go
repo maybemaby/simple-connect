@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"simple-connect/api/httputils"
@@ -11,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/alexedwards/scs/v2"
 	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type AuthHandler struct {
@@ -112,10 +114,24 @@ func NewProtectedAuthHandler(store AuthStore, sessionManager *scs.SessionManager
 	return &ProtectedAuthHandler{store: store, sessionManager: sessionManager}
 }
 
-func (as *ProtectedAuthHandler) Me(ctx context.Context, req *connect.Request[v1.MeRequest]) (*connect.Response[v1.BaseUser], error) {
+func (as *ProtectedAuthHandler) Me(ctx context.Context, req *connect.Request[v1.MeRequest]) (*connect.Response[v1.ReadUser], error) {
 
-	return connect.NewResponse(&v1.BaseUser{
-		Id: "1",
+	userId := as.sessionManager.GetString(ctx, SessionUserKey)
+
+	if userId == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("unauthorized"))
+	}
+
+	user, err := as.store.GetUserByID(ctx, userId)
+
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(&v1.ReadUser{
+		Id:        user.ID,
+		Email:     *user.Email,
+		CreatedAt: timestamppb.New(user.CreatedAt),
 	}), nil
 }
 

@@ -4,8 +4,16 @@ package proto.api.v1;
 
 option go_package = "simple-connect/gen/proto/api/v1;apiv1";
 
+import "google/protobuf/timestamp.proto";
+
 message BaseUser {
     string id = 1;
+}
+
+message ReadUser {
+    string id = 1;
+    string email = 2;
+    google.protobuf.Timestamp created_at = 3;
 }
 
 message LoginRequest {
@@ -25,5 +33,5 @@ service AuthService {
 }
 
 service ProtectedAuthService {
-    rpc Me(MeRequest) returns (BaseUser) {};
+    rpc Me(MeRequest) returns (ReadUser) {};
 }

@@ -4,15 +4,20 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"simple-connect/api/data/gen/gopg/public/model"
+	. "simple-connect/api/data/gen/gopg/public/table"
 	"time"
 
+	. "github.com/go-jet/jet/v2/postgres"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthStore interface {
 	GetUserByEmail(ctx context.Context, email string) (*DBUser, error)
+	GetUserByID(ctx context.Context, id string) (*model.Users, error)
 	CreateUser(ctx context.Context, email, password string) (string, error)
 	GetUserAccount(ctx context.Context, email string, provider string) (UserAccount, error)
 	UpdateAccountTokens(ctx context.Context, userId string, provider string, providerId string, data UpdateAccountTokensData) error
@@ -21,10 +26,12 @@ type AuthStore interface {
 
 type AuthService struct {
 	pool *pgxpool.Pool
+	db   *sql.DB
 }
 
 func NewAuthService(pool *pgxpool.Pool) *AuthService {
-	return &AuthService{pool: pool}
+	db := stdlib.OpenDBFromPool(pool)
+	return &AuthService{pool: pool, db: db}
 }
 
 type DBUser struct {
@@ -59,6 +66,17 @@ func (as *AuthService) GetUserByEmail(ctx context.Context, email string) (*DBUse
 	return user, err
 }
 
+func (as *AuthService) GetUserByID(ctx context.Context, id string) (*model.Users, error) {
+
+	stmt := SELECT(Users.AllColumns.Except(Users.PasswordHash)).FROM(Users).WHERE(Users.ID.EQ(String(id))).LIMIT(1)
+
+	var user model.Users
+
+	err := stmt.Query(as.db, &user)
+
+	return &user, err
+}
+
 func (as *AuthService) CreateUser(ctx context.Context, email, password string) (string, error) {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
@@ -67,10 +85,6 @@ func (as *AuthService) CreateUser(ctx context.Context, email, password string) (
 	}
 
 	row := as.pool.QueryRow(ctx, "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id", email, string(hashed))
-
-	if err != nil {
-		return "", err
-	}
 
 	var id string
 
@@ -137,7 +151,7 @@ func (as *AuthService) UpdateAccountTokens(ctx context.Context, userId string, p
 	}
 
 	if res.RowsAffected() != 1 {
-		return errors.New("More than one row affected")
+		return errors.New("more than one row affected")
 	}
 
 	err = tx.Commit(ctx)

@@ -88,7 +88,7 @@ type UnimplementedAuthServiceHandler struct{}
 
 // ProtectedAuthServiceClient is a client for the proto.api.v1.ProtectedAuthService service.
 type ProtectedAuthServiceClient interface {
-	Me(context.Context, *connect.Request[v1.MeRequest]) (*connect.Response[v1.BaseUser], error)
+	Me(context.Context, *connect.Request[v1.MeRequest]) (*connect.Response[v1.ReadUser], error)
 }
 
 // NewProtectedAuthServiceClient constructs a client for the proto.api.v1.ProtectedAuthService
@@ -101,7 +101,7 @@ type ProtectedAuthServiceClient interface {
 func NewProtectedAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ProtectedAuthServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
 	return &protectedAuthServiceClient{
-		me: connect.NewClient[v1.MeRequest, v1.BaseUser](
+		me: connect.NewClient[v1.MeRequest, v1.ReadUser](
 			httpClient,
 			baseURL+ProtectedAuthServiceMeProcedure,
 			connect.WithSchema(protectedAuthServiceMeMethodDescriptor),
@@ -112,18 +112,18 @@ func NewProtectedAuthServiceClient(httpClient connect.HTTPClient, baseURL string
 
 // protectedAuthServiceClient implements ProtectedAuthServiceClient.
 type protectedAuthServiceClient struct {
-	me *connect.Client[v1.MeRequest, v1.BaseUser]
+	me *connect.Client[v1.MeRequest, v1.ReadUser]
 }
 
 // Me calls proto.api.v1.ProtectedAuthService.Me.
-func (c *protectedAuthServiceClient) Me(ctx context.Context, req *connect.Request[v1.MeRequest]) (*connect.Response[v1.BaseUser], error) {
+func (c *protectedAuthServiceClient) Me(ctx context.Context, req *connect.Request[v1.MeRequest]) (*connect.Response[v1.ReadUser], error) {
 	return c.me.CallUnary(ctx, req)
 }
 
 // ProtectedAuthServiceHandler is an implementation of the proto.api.v1.ProtectedAuthService
 // service.
 type ProtectedAuthServiceHandler interface {
-	Me(context.Context, *connect.Request[v1.MeRequest]) (*connect.Response[v1.BaseUser], error)
+	Me(context.Context, *connect.Request[v1.MeRequest]) (*connect.Response[v1.ReadUser], error)
 }
 
 // NewProtectedAuthServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -151,6 +151,6 @@ func NewProtectedAuthServiceHandler(svc ProtectedAuthServiceHandler, opts ...con
 // UnimplementedProtectedAuthServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedProtectedAuthServiceHandler struct{}
 
-func (UnimplementedProtectedAuthServiceHandler) Me(context.Context, *connect.Request[v1.MeRequest]) (*connect.Response[v1.BaseUser], error) {
+func (UnimplementedProtectedAuthServiceHandler) Me(context.Context, *connect.Request[v1.MeRequest]) (*connect.Response[v1.ReadUser], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("proto.api.v1.ProtectedAuthService.Me is not implemented"))
 }
