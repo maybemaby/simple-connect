@@ -1,5 +1,12 @@
 # simple-connect
 
+## Development
+
+Install go-jet cli
+```bash
+go install github.com/go-jet/jet/v2/cmd/jet@latest
+```
+
 ## Database
 
 Migrate up

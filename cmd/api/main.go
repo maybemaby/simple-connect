@@ -79,7 +79,7 @@ func main() {
 
 	// OS Signals
 	osSignals := make(chan os.Signal, 1)
-	signal.Notify(osSignals, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(osSignals, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 
 	go func() {
 		err := server.Start()
