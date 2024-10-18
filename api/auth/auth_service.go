@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -13,6 +14,9 @@ import (
 type AuthStore interface {
 	GetUserByEmail(ctx context.Context, email string) (*DBUser, error)
 	CreateUser(ctx context.Context, email, password string) (string, error)
+	GetUserAccount(ctx context.Context, email string, provider string) (UserAccount, error)
+	UpdateAccountTokens(ctx context.Context, userId string, provider string, providerId string, data UpdateAccountTokensData) error
+	CreateAccount(ctx context.Context, data CreateAccountData) (string, error)
 }
 
 type AuthService struct {
@@ -73,4 +77,123 @@ func (as *AuthService) CreateUser(ctx context.Context, email, password string) (
 	err = row.Scan(&id)
 
 	return id, err
+}
+
+type UserAccount struct {
+	Email      string `db:"email"`
+	Provider   string `db:"provider"`
+	ProviderId string `db:"provider_id"`
+	UserId     string `db:"user_id"`
+}
+
+func (as *AuthService) GetUserAccount(ctx context.Context, email string, provider string) (UserAccount, error) {
+
+	rows, err := as.pool.Query(ctx,
+		"SELECT u.email, a.provider, a.provider_id, a.user_id FROM users u LEFT JOIN accounts a ON u.id = a.user_id WHERE u.email = $1 AND a.provider = $2 LIMIT 1",
+		email, provider)
+
+	if err != nil {
+		return UserAccount{}, err
+	}
+
+	data, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[UserAccount])
+
+	return data, err
+}
+
+type UpdateAccountTokensData struct {
+	AccessToken       string       `db:"access_token"`
+	RefreshToken      string       `db:"refresh_token"`
+	AccessTokenExpiry sql.NullTime `db:"access_token_expires_at"`
+}
+
+func (as *AuthService) UpdateAccountTokens(ctx context.Context, userId string, provider string, providerId string, data UpdateAccountTokensData) error {
+	tx, err := as.pool.Begin(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback(ctx)
+
+	res, err := tx.Exec(ctx,
+		`UPDATE accounts SET
+			access_token = @access_token,
+			refresh_token = @refresh_token,
+			access_token_expires_at = @access_token_expires_at
+			WHERE user_id = @user_id AND provider = @provider AND provider_id = @provider_id
+			`, pgx.NamedArgs{
+			"access_token":            data.AccessToken,
+			"refresh_token":           data.RefreshToken,
+			"access_token_expires_at": data.AccessTokenExpiry,
+			"user_id":                 userId,
+			"provider":                provider,
+			"provider_id":             providerId,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if res.RowsAffected() != 1 {
+		return errors.New("More than one row affected")
+	}
+
+	err = tx.Commit(ctx)
+
+	return err
+}
+
+type CreateAccountData struct {
+	Email             string
+	Provider          string
+	ProviderId        string       `db:"provider_id"`
+	AccessToken       string       `db:"access_token"`
+	RefreshToken      string       `db:"refresh_token"`
+	AccessTokenExpiry sql.NullTime `db:"access_token_expires_at"`
+}
+
+func (as *AuthService) CreateAccount(ctx context.Context, data CreateAccountData) (string, error) {
+
+	tx, err := as.pool.Begin(ctx)
+
+	if err != nil {
+		return "", err
+	}
+
+	defer tx.Rollback(ctx)
+
+	var userId string
+	userRow := tx.QueryRow(ctx, "INSERT INTO users (email) VALUES ($1) RETURNING id", data.Email)
+
+	err = userRow.Scan(&userId)
+
+	if err != nil {
+		return "", err
+	}
+
+	accountRow := tx.QueryRow(ctx,
+		"INSERT into accounts (provider, provider_id, user_id, access_token, refresh_token, access_token_expires_at) VALUES (@provider, @provider_id, @user_id, @access_token, @refresh_token, @access_token_expires_at) RETURNING provider_id",
+		pgx.NamedArgs{
+			"provider":                data.Provider,
+			"provider_id":             data.ProviderId,
+			"user_id":                 userId,
+			"access_token":            data.AccessToken,
+			"refresh_token":           data.RefreshToken,
+			"access_token_expires_at": data.AccessTokenExpiry,
+		},
+	)
+
+	var accountId string
+
+	err = accountRow.Scan(&accountId)
+
+	if err != nil {
+		return "", err
+	}
+
+	err = tx.Commit(ctx)
+
+	return userId, err
 }

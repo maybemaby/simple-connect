@@ -9,6 +9,7 @@ require (
 )
 
 require (
+	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	connectrpc.com/connect v1.17.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -33,4 +34,5 @@ require (
 	github.com/unrolled/secure v1.15.0
 	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
 	golang.org/x/net v0.29.0
+	golang.org/x/oauth2 v0.23.0
 )

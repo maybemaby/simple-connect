@@ -88,6 +88,17 @@ func (s *Server) MountHandlers() {
 	s.mux.Handle("POST /auth/login/{$}", rootMw.ThenFunc(authHandler.Login))
 	s.mux.Handle("POST /auth/signup/{$}", rootMw.ThenFunc(authHandler.Signup))
 
+	providerHandler := &auth.ProviderHandler{
+		Domain:         "",
+		Secure:         false,
+		AuthStore:      authStore,
+		SessionManager: s.sessionManager,
+		RedirectURI:    "http://localhost:8000/health",
+	}
+
+	s.mux.Handle("GET /auth/google/{$}", rootMw.ThenFunc(providerHandler.HandleGoogleAuth))
+	s.mux.Handle("GET /auth/google/callback/{$}", rootMw.ThenFunc(providerHandler.HandleGoogleCallback))
+
 	protectedAuthHandler := auth.NewProtectedAuthHandler(authStore, s.sessionManager)
 	protectedAuthPath, protectedAuthRpc := apiv1connect.NewProtectedAuthServiceHandler(protectedAuthHandler)
 	s.logger.Debug("Mounting protected auth handler at", slog.String("path", protectedAuthPath))
