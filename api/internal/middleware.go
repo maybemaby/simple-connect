@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/alexedwards/scs/v2"
 	"github.com/google/uuid"
 	"github.com/justinas/alice"
 	"github.com/unrolled/secure"
@@ -82,8 +81,7 @@ func RequestLogger(request *http.Request) *slog.Logger {
 }
 
 type MiddlewareConfig struct {
-	CorsOrigin     string
-	SessionManager *scs.SessionManager
+	CorsOrigin string
 }
 
 func RootMiddleware(logger slog.Logger, cfg MiddlewareConfig) alice.Chain {
@@ -93,7 +91,7 @@ func RootMiddleware(logger slog.Logger, cfg MiddlewareConfig) alice.Chain {
 		HostsProxyHeaders: []string{"X-Forwarded-Host"},
 	})
 
-	return alice.New(cfg.SessionManager.LoadAndSave, RequestIdMiddleware(), LoggingMiddleware(logger), CorsMiddleware(cfg.CorsOrigin), secureMw.Handler)
+	return alice.New(RequestIdMiddleware(), LoggingMiddleware(logger), CorsMiddleware(cfg.CorsOrigin), secureMw.Handler)
 }
 
 func RpcLogger(ctx context.Context) *slog.Logger {

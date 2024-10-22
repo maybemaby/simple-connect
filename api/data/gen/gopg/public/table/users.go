@@ -17,7 +17,7 @@ type usersTable struct {
 	postgres.Table
 
 	// Columns
-	ID            postgres.ColumnString
+	ID            postgres.ColumnInteger
 	PasswordHash  postgres.ColumnString
 	Email         postgres.ColumnString
 	EmailVerified postgres.ColumnTimestampz
@@ -62,7 +62,7 @@ func newUsersTable(schemaName, tableName, alias string) *UsersTable {
 
 func newUsersTableImpl(schemaName, tableName, alias string) usersTable {
 	var (
-		IDColumn            = postgres.StringColumn("id")
+		IDColumn            = postgres.IntegerColumn("id")
 		PasswordHashColumn  = postgres.StringColumn("password_hash")
 		EmailColumn         = postgres.StringColumn("email")
 		EmailVerifiedColumn = postgres.TimestampzColumn("email_verified")

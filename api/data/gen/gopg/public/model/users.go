@@ -12,7 +12,7 @@ import (
 )
 
 type Users struct {
-	ID            string `sql:"primary_key"`
+	ID            int32 `sql:"primary_key"`
 	PasswordHash  *string
 	Email         *string
 	EmailVerified *time.Time

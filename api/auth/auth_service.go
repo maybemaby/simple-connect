@@ -17,11 +17,11 @@ import (
 
 type AuthStore interface {
 	GetUserByEmail(ctx context.Context, email string) (*DBUser, error)
-	GetUserByID(ctx context.Context, id string) (*model.Users, error)
+	GetUserByID(ctx context.Context, id int64) (*model.Users, error)
 	CreateUser(ctx context.Context, email, password string) (string, error)
 	GetUserAccount(ctx context.Context, email string, provider string) (UserAccount, error)
-	UpdateAccountTokens(ctx context.Context, userId string, provider string, providerId string, data UpdateAccountTokensData) error
-	CreateAccount(ctx context.Context, data CreateAccountData) (string, error)
+	UpdateAccountTokens(ctx context.Context, userId int64, provider string, providerId string, data UpdateAccountTokensData) error
+	CreateAccount(ctx context.Context, data CreateAccountData) (int64, error)
 }
 
 type AuthService struct {
@@ -35,7 +35,7 @@ func NewAuthService(pool *pgxpool.Pool) *AuthService {
 }
 
 type DBUser struct {
-	ID            string         `db:"id" json:"id"`
+	ID            int64          `db:"id" json:"id"`
 	PasswordHash  sql.NullString `db:"password_hash" json:"password_hash"`
 	Email         *string        `db:"email" json:"email"`
 	EmailVerified *time.Time     `db:"email_verified" json:"email_verified"`
@@ -66,9 +66,9 @@ func (as *AuthService) GetUserByEmail(ctx context.Context, email string) (*DBUse
 	return user, err
 }
 
-func (as *AuthService) GetUserByID(ctx context.Context, id string) (*model.Users, error) {
+func (as *AuthService) GetUserByID(ctx context.Context, id int64) (*model.Users, error) {
 
-	stmt := SELECT(Users.AllColumns.Except(Users.PasswordHash)).FROM(Users).WHERE(Users.ID.EQ(String(id))).LIMIT(1)
+	stmt := SELECT(Users.AllColumns.Except(Users.PasswordHash)).FROM(Users).WHERE(Users.ID.EQ(Int(id))).LIMIT(1)
 
 	var user model.Users
 
@@ -97,7 +97,7 @@ type UserAccount struct {
 	Email      string `db:"email"`
 	Provider   string `db:"provider"`
 	ProviderId string `db:"provider_id"`
-	UserId     string `db:"user_id"`
+	UserId     int64  `db:"user_id"`
 }
 
 func (as *AuthService) GetUserAccount(ctx context.Context, email string, provider string) (UserAccount, error) {
@@ -121,7 +121,7 @@ type UpdateAccountTokensData struct {
 	AccessTokenExpiry sql.NullTime `db:"access_token_expires_at"`
 }
 
-func (as *AuthService) UpdateAccountTokens(ctx context.Context, userId string, provider string, providerId string, data UpdateAccountTokensData) error {
+func (as *AuthService) UpdateAccountTokens(ctx context.Context, userId int64, provider string, providerId string, data UpdateAccountTokensData) error {
 	tx, err := as.pool.Begin(ctx)
 
 	if err != nil {
@@ -168,23 +168,23 @@ type CreateAccountData struct {
 	AccessTokenExpiry sql.NullTime `db:"access_token_expires_at"`
 }
 
-func (as *AuthService) CreateAccount(ctx context.Context, data CreateAccountData) (string, error) {
+func (as *AuthService) CreateAccount(ctx context.Context, data CreateAccountData) (int64, error) {
 
 	tx, err := as.pool.Begin(ctx)
 
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
 	defer tx.Rollback(ctx)
 
-	var userId string
+	var userId int64
 	userRow := tx.QueryRow(ctx, "INSERT INTO users (email) VALUES ($1) RETURNING id", data.Email)
 
 	err = userRow.Scan(&userId)
 
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
 	accountRow := tx.QueryRow(ctx,
@@ -204,7 +204,7 @@ func (as *AuthService) CreateAccount(ctx context.Context, data CreateAccountData
 	err = accountRow.Scan(&accountId)
 
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
 	err = tx.Commit(ctx)

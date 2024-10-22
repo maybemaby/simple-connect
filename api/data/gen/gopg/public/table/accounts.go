@@ -17,9 +17,10 @@ type accountsTable struct {
 	postgres.Table
 
 	// Columns
+	ID                   postgres.ColumnInteger
 	ProviderID           postgres.ColumnString
 	Provider             postgres.ColumnString
-	UserID               postgres.ColumnString
+	UserID               postgres.ColumnInteger
 	AccessToken          postgres.ColumnString
 	RefreshToken         postgres.ColumnString
 	AccessTokenExpiresAt postgres.ColumnTimestampz
@@ -64,21 +65,23 @@ func newAccountsTable(schemaName, tableName, alias string) *AccountsTable {
 
 func newAccountsTableImpl(schemaName, tableName, alias string) accountsTable {
 	var (
+		IDColumn                   = postgres.IntegerColumn("id")
 		ProviderIDColumn           = postgres.StringColumn("provider_id")
 		ProviderColumn             = postgres.StringColumn("provider")
-		UserIDColumn               = postgres.StringColumn("user_id")
+		UserIDColumn               = postgres.IntegerColumn("user_id")
 		AccessTokenColumn          = postgres.StringColumn("access_token")
 		RefreshTokenColumn         = postgres.StringColumn("refresh_token")
 		AccessTokenExpiresAtColumn = postgres.TimestampzColumn("access_token_expires_at")
 		CreatedAtColumn            = postgres.TimestampzColumn("created_at")
-		allColumns                 = postgres.ColumnList{ProviderIDColumn, ProviderColumn, UserIDColumn, AccessTokenColumn, RefreshTokenColumn, AccessTokenExpiresAtColumn, CreatedAtColumn}
-		mutableColumns             = postgres.ColumnList{UserIDColumn, AccessTokenColumn, RefreshTokenColumn, AccessTokenExpiresAtColumn, CreatedAtColumn}
+		allColumns                 = postgres.ColumnList{IDColumn, ProviderIDColumn, ProviderColumn, UserIDColumn, AccessTokenColumn, RefreshTokenColumn, AccessTokenExpiresAtColumn, CreatedAtColumn}
+		mutableColumns             = postgres.ColumnList{ProviderIDColumn, ProviderColumn, UserIDColumn, AccessTokenColumn, RefreshTokenColumn, AccessTokenExpiresAtColumn, CreatedAtColumn}
 	)
 
 	return accountsTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
+		ID:                   IDColumn,
 		ProviderID:           ProviderIDColumn,
 		Provider:             ProviderColumn,
 		UserID:               UserIDColumn,

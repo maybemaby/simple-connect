@@ -13,7 +13,6 @@ import (
 
 type Sessions struct {
 	Token     string `sql:"primary_key"`
-	UserID    *string
 	Expiry    time.Time
 	Data      []byte
 	CreatedAt time.Time

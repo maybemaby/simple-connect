@@ -12,9 +12,10 @@ import (
 )
 
 type Accounts struct {
-	ProviderID           string `sql:"primary_key"`
-	Provider             string `sql:"primary_key"`
-	UserID               *string
+	ID                   int32 `sql:"primary_key"`
+	ProviderID           string
+	Provider             string
+	UserID               *int32
 	AccessToken          *string
 	RefreshToken         *string
 	AccessTokenExpiresAt *time.Time

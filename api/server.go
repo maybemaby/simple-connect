@@ -2,29 +2,38 @@ package api
 
 import (
 	"context"
+	"encoding/gob"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"simple-connect/api/auth"
 	"simple-connect/api/data"
 	"simple-connect/api/internal"
 	"simple-connect/gen/proto/api/v1/apiv1connect"
+	"time"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/maybemaby/smolauth"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
 
+func init() {
+	gob.Register(time.Time{})
+}
+
 type Server struct {
-	mux            *http.ServeMux
-	srv            *http2.Server
-	logger         *slog.Logger
-	sessionManager *scs.SessionManager
-	Addr           string
-	allowedHosts   []string
-	pool           *pgxpool.Pool
-	ctx            context.Context
+	mux    *http.ServeMux
+	srv    *http2.Server
+	logger *slog.Logger
+	// sessionManager *scs.SessionManager
+	authManager  *smolauth.AuthManager
+	Addr         string
+	allowedHosts []string
+	pool         *pgxpool.Pool
+	ctx          context.Context
 }
 
 type ServerConfig struct {
@@ -36,7 +45,8 @@ type ServerConfig struct {
 func NewServer(cfg ServerConfig, isProd bool) (*Server, error) {
 
 	ctx := context.Background()
-	var sessionManager *scs.SessionManager
+	// var sessionManager *scs.SessionManager
+	var authManager *smolauth.AuthManager
 	var logFormat internal.LoggingFormat
 
 	pool, err := data.NewPool(ctx, !isProd)
@@ -47,59 +57,73 @@ func NewServer(cfg ServerConfig, isProd bool) (*Server, error) {
 
 	if isProd {
 		logFormat = internal.JSONFormat
-		sessionManager = auth.NewSessionManager(true, "", pool)
+		// sessionManager = auth.NewSessionManager(true, "", pool)
+
 	} else {
 		logFormat = internal.TEXTFormat
-		sessionManager = auth.NewSessionManager(false, "", pool)
+		// sessionManager = auth.NewSessionManager(false, "", pool)
 	}
 
 	logger := internal.BootstrapLogger(cfg.LogLevel, logFormat, !isProd)
 
+	authManager = smolauth.NewAuthManager(smolauth.AuthOpts{
+		SessionDuration: time.Hour * 24 * 30,
+		Cookie: scs.SessionCookie{
+			Name:     "__s_auth_sess",
+			HttpOnly: true,
+			Persist:  true,
+			SameSite: http.SameSiteLaxMode,
+			Secure:   isProd,
+			Path:     "/",
+		},
+	})
+
+	authManager.WithLogger(logger)
+	authManager.WithGoogle(smolauth.NewGoogleProvider(
+		os.Getenv("GOOGLE_CLIENT_ID"),
+		os.Getenv("GOOGLE_CLIENT_SECRET"),
+		os.Getenv("GOOGLE_REDIRECT_URI"), "http://localhost:8000/", []string{}))
+	authManager.WithPostgres(pool)
+
 	return &Server{
-		mux:            http.NewServeMux(),
-		srv:            &http2.Server{},
-		logger:         logger,
-		sessionManager: sessionManager,
-		Addr:           fmt.Sprintf(":%s", cfg.Port),
-		allowedHosts:   cfg.AllowedHosts,
-		pool:           pool,
-		ctx:            ctx,
+		mux:    http.NewServeMux(),
+		srv:    &http2.Server{},
+		logger: logger,
+		// sessionManager: sessionManager,
+		authManager:  authManager,
+		Addr:         fmt.Sprintf(":%s", cfg.Port),
+		allowedHosts: cfg.AllowedHosts,
+		pool:         pool,
+		ctx:          ctx,
 	}, nil
 }
 
 func (s *Server) MountHandlers() {
 
-	rootMw := internal.RootMiddleware(*s.logger, internal.MiddlewareConfig{
-		CorsOrigin:     s.allowedHosts[0],
-		SessionManager: s.sessionManager,
-	})
+	sessMw := smolauth.AuthLoadMiddleware(s.authManager)
 
-	authMw := rootMw.Append(auth.RequireAuthMiddleWare(s.sessionManager))
+	rootMw := sessMw.Extend(internal.RootMiddleware(*s.logger, internal.MiddlewareConfig{
+		CorsOrigin: s.allowedHosts[0],
+	}))
+
+	authMw := rootMw.Append(smolauth.RequireAuthMiddleware(s.authManager))
 
 	healthPath, healthHandler := apiv1connect.NewHealthServiceHandler(&HealthService{})
 	s.logger.Debug("Mounting health handler at", slog.String("path", healthPath))
 	s.mux.Handle(healthPath, rootMw.Then(healthHandler))
 
 	authStore := auth.NewAuthService(s.pool)
-	authHandler := auth.NewAuthHandler(authStore, s.sessionManager)
+	authHandler := auth.NewAuthHandler(authStore, s.authManager)
 	authPath, authRpc := apiv1connect.NewAuthServiceHandler(authHandler)
 	s.logger.Debug("Mounting auth handler at", slog.String("path", authPath))
 	s.mux.Handle(authPath, rootMw.Then(authRpc))
 	s.mux.Handle("POST /auth/login/{$}", rootMw.ThenFunc(authHandler.Login))
 	s.mux.Handle("POST /auth/signup/{$}", rootMw.ThenFunc(authHandler.Signup))
 
-	providerHandler := &auth.ProviderHandler{
-		Domain:         "",
-		Secure:         false,
-		AuthStore:      authStore,
-		SessionManager: s.sessionManager,
-		RedirectURI:    "http://localhost:8000/health",
-	}
+	s.mux.Handle("GET /auth/google/{$}", rootMw.ThenFunc(s.authManager.HandleOAuth("google")))
+	s.mux.Handle("GET /auth/google/callback/{$}", rootMw.ThenFunc(s.authManager.HandleOAuthCallback("google")))
 
-	s.mux.Handle("GET /auth/google/{$}", rootMw.ThenFunc(providerHandler.HandleGoogleAuth))
-	s.mux.Handle("GET /auth/google/callback/{$}", rootMw.ThenFunc(providerHandler.HandleGoogleCallback))
-
-	protectedAuthHandler := auth.NewProtectedAuthHandler(authStore, s.sessionManager)
+	protectedAuthHandler := auth.NewProtectedAuthHandler(authStore, s.authManager)
 	protectedAuthPath, protectedAuthRpc := apiv1connect.NewProtectedAuthServiceHandler(protectedAuthHandler)
 	s.logger.Debug("Mounting protected auth handler at", slog.String("path", protectedAuthPath))
 	s.mux.Handle(protectedAuthPath, authMw.Then(protectedAuthRpc))

@@ -18,7 +18,6 @@ type sessionsTable struct {
 
 	// Columns
 	Token     postgres.ColumnString
-	UserID    postgres.ColumnString
 	Expiry    postgres.ColumnTimestampz
 	Data      postgres.ColumnString
 	CreatedAt postgres.ColumnTimestampz
@@ -63,12 +62,11 @@ func newSessionsTable(schemaName, tableName, alias string) *SessionsTable {
 func newSessionsTableImpl(schemaName, tableName, alias string) sessionsTable {
 	var (
 		TokenColumn     = postgres.StringColumn("token")
-		UserIDColumn    = postgres.StringColumn("user_id")
 		ExpiryColumn    = postgres.TimestampzColumn("expiry")
 		DataColumn      = postgres.StringColumn("data")
 		CreatedAtColumn = postgres.TimestampzColumn("created_at")
-		allColumns      = postgres.ColumnList{TokenColumn, UserIDColumn, ExpiryColumn, DataColumn, CreatedAtColumn}
-		mutableColumns  = postgres.ColumnList{UserIDColumn, ExpiryColumn, DataColumn, CreatedAtColumn}
+		allColumns      = postgres.ColumnList{TokenColumn, ExpiryColumn, DataColumn, CreatedAtColumn}
+		mutableColumns  = postgres.ColumnList{ExpiryColumn, DataColumn, CreatedAtColumn}
 	)
 
 	return sessionsTable{
@@ -76,7 +74,6 @@ func newSessionsTableImpl(schemaName, tableName, alias string) sessionsTable {
 
 		//Columns
 		Token:     TokenColumn,
-		UserID:    UserIDColumn,
 		Expiry:    ExpiryColumn,
 		Data:      DataColumn,
 		CreatedAt: CreatedAtColumn,
